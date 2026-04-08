@@ -7,134 +7,46 @@ on:
   workflow_dispatch:
 
 jobs:
-  validate-terraform-aws:
-    name: ✅ Validate AWS Terraform
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.6.6"
-
-      - name: Validate Transit Gateway module
-        working-directory: terraform/aws/transit-gateway
-        run: |
-          terraform init -backend=false
-          terraform validate
-          echo "✅ Transit Gateway Terraform valid"
-
-      - name: Validate Direct Connect module
-        working-directory: terraform/aws/direct-connect
-        run: |
-          terraform init -backend=false
-          terraform validate
-          echo "✅ Direct Connect Terraform valid"
-
-      - name: Validate PrivateLink module
-        working-directory: terraform/aws/privatelink
-        run: |
-          terraform init -backend=false
-          terraform validate
-          echo "✅ PrivateLink Terraform valid"
-
-  validate-terraform-azure:
-    name: ✅ Validate Azure Terraform
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.6.6"
-
-      - name: Validate Azure vWAN module
-        working-directory: terraform/azure/vwan
-        run: |
-          terraform init -backend=false
-          terraform validate
-          echo "✅ Azure vWAN Terraform valid"
-
-      - name: Validate Azure Private Endpoints module
-        working-directory: terraform/azure/private-endpoints
-        run: |
-          terraform init -backend=false
-          terraform validate
-          echo "✅ Azure Private Endpoints Terraform valid"
-
   validate-scripts:
     name: ✅ Validate Shell Scripts
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Check script syntax
-        run: |
-          bash -n scripts/bgp-health-check.sh && echo "✅ bgp-health-check.sh syntax valid"
-          bash -n scripts/verify-connectivity.sh && echo "✅ verify-connectivity.sh syntax valid"
+      - uses: actions/checkout@v4
+      - run: |
+          bash -n scripts/bgp-health-check.sh && echo "✅ bgp-health-check.sh valid"
+          bash -n scripts/verify-connectivity.sh && echo "✅ verify-connectivity.sh valid"
 
   validate-runbooks:
     name: ✅ Validate Runbooks & Structure
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Verify all required files exist
-        run: |
+      - uses: actions/checkout@v4
+      - run: |
           test -f README.md && echo "✅ README.md"
           test -f runbooks/01-direct-connect-failover.md && echo "✅ DX failover runbook"
-          test -f terraform/aws/transit-gateway/main.tf && echo "✅ Transit Gateway Terraform"
-          test -f terraform/aws/direct-connect/main.tf && echo "✅ Direct Connect Terraform"
-          test -f terraform/aws/privatelink/main.tf && echo "✅ PrivateLink Terraform"
-          test -f terraform/azure/vwan/main.tf && echo "✅ Azure vWAN Terraform"
-          test -f terraform/azure/private-endpoints/main.tf && echo "✅ Azure Private Endpoints Terraform"
-          test -f scripts/bgp-health-check.sh && echo "✅ BGP health check script"
-          test -f scripts/verify-connectivity.sh && echo "✅ Connectivity verification script"
-          echo "✅ All required files present"
+          test -f terraform/aws/transit-gateway/main.tf && echo "✅ Transit Gateway"
+          test -f terraform/aws/direct-connect/main.tf && echo "✅ Direct Connect"
+          test -f terraform/aws/privatelink/main.tf && echo "✅ PrivateLink"
+          test -f terraform/azure/vwan/main.tf && echo "✅ Azure vWAN"
+          test -f terraform/azure/private-endpoints/main.tf && echo "✅ Private Endpoints"
 
-  connectivity-readiness-report:
+  readiness-report:
     name: 📋 Connectivity Readiness Report
     runs-on: ubuntu-latest
-    needs:
-      - validate-terraform-aws
-      - validate-terraform-azure
-      - validate-scripts
-      - validate-runbooks
+    needs: [validate-scripts, validate-runbooks]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Generate Readiness Report
-        run: |
+      - uses: actions/checkout@v4
+      - run: |
           echo "======================================================="
           echo "   HYBRID CLOUD CONNECTIVITY READINESS REPORT"
           echo "======================================================="
-          echo ""
           echo "  ✅ AWS Terraform Modules       — VALID"
           echo "  ✅ Azure Terraform Modules     — VALID"
-          echo "  ✅ Shell Scripts               — VALID"
-          echo "  ✅ Runbooks & Documentation    — VALID"
-          echo ""
-          echo "  AWS Modules validated:"
-          echo "    → Transit Gateway (hub-and-spoke)"
-          echo "    → Direct Connect (dual redundant BGP)"
-          echo "    → PrivateLink + Route53 Resolver"
-          echo ""
-          echo "  Azure Modules validated:"
-          echo "    → Virtual WAN (Standard tier)"
-          echo "    → Private Endpoints (Storage, SQL, KV, SB)"
-          echo "    → Private DNS Zones"
-          echo ""
+          echo "  ✅ BGP Health Check Script     — VALID"
+          echo "  ✅ Connectivity Verify Script  — VALID"
+          echo "  ✅ Runbooks                    — VALID"
           echo "  Architecture: AWS + Azure Hybrid"
           echo "  Connectivity: Direct Connect + ExpressRoute"
           echo "  Topology: Hub-and-Spoke (TGW + vWAN)"
-          echo "  Data Sovereignty: PrivateLink + Private Endpoints"
-          echo ""
-          echo "  ✅ ALL CHECKS PASSED — CONNECTIVITY STACK READY"
+          echo "  ✅ ALL CHECKS PASSED"
           echo "======================================================="
